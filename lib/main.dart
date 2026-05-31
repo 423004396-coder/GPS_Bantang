@@ -13,30 +13,34 @@ class LocationApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'LOCATE',
+      title: 'Serenity',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: const ColorScheme.light(
-          primary: Color(0xFF0A0A0A),
-          surface: Color(0xFFF5F0E8),
-          onSurface: Color(0xFF0A0A0A),
+        colorScheme: ColorScheme.light(
+          primary: _ocean,
+          surface: _sand,
+          onSurface: _dusk,
         ),
         useMaterial3: true,
-        fontFamily: 'Courier',
+        fontFamily: 'Georgia',
       ),
       home: const LocationScreen(),
     );
   }
 }
 
-// ─── BRUTALIST DESIGN TOKENS ───────────────────────────────────────────────
-const _ink = Color(0xFF0A0A0A);
-const _paper = Color(0xFFF5F0E8);
-const _paperDark = Color(0xFFEAE4D6);
-const _red = Color(0xFFD32F2F);
-const _accent = Color(0xFFFF6B00); // cinematic amber-orange
-const _border = Color(0xFF0A0A0A);
-const _borderWidth = 2.5;
+// ─── OCEAN BLUE SERENITY PALETTE ───────────────────────────────────────────
+const _sand       = Color(0xFFF0F6FF);       // misty white-blue base
+const _sandMid    = Color(0xFFDEEAF7);       // soft periwinkle mist
+const _sandDeep   = Color(0xFFBDD4EE);       // deeper blue-grey mist
+const _ocean      = Color(0xFF1565C0);       // deep sapphire ocean
+const _oceanLight = Color(0xFF4A90D9);       // clear mid-ocean blue
+const _sky        = Color(0xFF5BA3D9);       // serene sky blue
+const _skyLight   = Color(0xFFCCE5F7);       // pale horizon blue
+const _coral      = Color(0xFF4FC3F7);       // bright aqua accent
+const _sun        = Color(0xFF90CAF9);       // soft powder blue highlight
+const _dusk       = Color(0xFF0D2B4E);       // deep midnight navy
+const _foam       = Color(0xFFFFFFFF);       // white foam
 
 class LocationScreen extends StatefulWidget {
   const LocationScreen({super.key});
@@ -48,74 +52,83 @@ class LocationScreen extends StatefulWidget {
 class _LocationScreenState extends State<LocationScreen>
     with TickerProviderStateMixin {
   Position? _currentPosition;
-  String _placeName = '——';
+  String _placeName = 'Searching…';
   String _streetAddress = '';
   String _city = '';
   String _country = '';
-  String _statusMessage = 'INITIALIZING GPS';
+  String _statusMessage = 'Initializing GPS';
   bool _isTracking = false;
   bool _isLoading = false;
   int _updateCount = 0;
 
   StreamSubscription<Position>? _positionStream;
 
-  late AnimationController _blinkController;
-  late AnimationController _slideController;
-  late Animation<double> _blinkAnimation;
-  late Animation<Offset> _slideAnimation;
+  late AnimationController _pulseController;
+  late AnimationController _waveController;
+  late AnimationController _fadeController;
+  late Animation<double> _pulseAnimation;
+  late Animation<double> _waveAnimation;
+  late Animation<double> _fadeAnimation;
 
   final LocationSettings _locationSettings = const LocationSettings(
-    accuracy: LocationAccuracy.high,
-    distanceFilter: 10,
+    accuracy: LocationAccuracy.medium,
+    distanceFilter: 1,
   );
 
   @override
   void initState() {
     super.initState();
 
-    _blinkController = AnimationController(
+    _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1600),
     )..repeat(reverse: true);
 
-    _slideController = AnimationController(
+    _waveController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 3000),
+    )..repeat();
+
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
     );
 
-    _blinkAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(parent: _blinkController, curve: Curves.easeInOut),
+    _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOut));
+    _waveAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _waveController, curve: Curves.linear),
+    );
 
-    _slideController.forward();
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
+    );
+
+    _fadeController.forward();
     _checkPermissionsAndStart();
   }
 
   @override
   void dispose() {
     _positionStream?.cancel();
-    _blinkController.dispose();
-    _slideController.dispose();
+    _pulseController.dispose();
+    _waveController.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
-
-  // ─── PERMISSION & LOCATION LOGIC ─────────────────────────────────────────
 
   Future<void> _checkPermissionsAndStart() async {
     setState(() {
       _isLoading = true;
-      _statusMessage = 'CHECKING PERMISSIONS';
+      _statusMessage = 'Checking permissions…';
     });
 
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       setState(() {
-        _statusMessage = 'GPS DISABLED — ENABLE LOCATION SERVICES';
+        _statusMessage = 'GPS disabled — enable location services';
         _isLoading = false;
       });
       _showServiceDisabledDialog();
@@ -127,7 +140,7 @@ class _LocationScreenState extends State<LocationScreen>
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
         setState(() {
-          _statusMessage = 'PERMISSION DENIED';
+          _statusMessage = 'Permission denied';
           _isLoading = false;
         });
         return;
@@ -136,7 +149,7 @@ class _LocationScreenState extends State<LocationScreen>
 
     if (permission == LocationPermission.deniedForever) {
       setState(() {
-        _statusMessage = 'PERMISSION PERMANENTLY DENIED — OPEN SETTINGS';
+        _statusMessage = 'Permission permanently denied — open settings';
         _isLoading = false;
       });
       _showPermissionDeniedDialog();
@@ -149,7 +162,7 @@ class _LocationScreenState extends State<LocationScreen>
   Future<void> _startTracking() async {
     setState(() {
       _isLoading = true;
-      _statusMessage = 'ACQUIRING SIGNAL';
+      _statusMessage = 'Catching your signal…';
     });
 
     try {
@@ -158,14 +171,15 @@ class _LocationScreenState extends State<LocationScreen>
       );
       await _onPositionUpdate(initialPos);
     } catch (e) {
-      setState(() => _statusMessage = 'ERROR: $e');
+      setState(() => _statusMessage = 'Error: $e');
     }
 
     _positionStream = Geolocator.getPositionStream(
       locationSettings: _locationSettings,
     ).listen(
           (Position position) async => await _onPositionUpdate(position),
-      onError: (error) => setState(() => _statusMessage = 'STREAM ERROR: $error'),
+      onError: (error) =>
+          setState(() => _statusMessage = 'Stream error: $error'),
     );
 
     setState(() {
@@ -178,7 +192,7 @@ class _LocationScreenState extends State<LocationScreen>
     setState(() {
       _currentPosition = position;
       _updateCount++;
-      _statusMessage = 'RESOLVING ADDRESS';
+      _statusMessage = 'Resolving address…';
     });
     await _reverseGeocode(position.latitude, position.longitude);
   }
@@ -206,31 +220,39 @@ class _LocationScreenState extends State<LocationScreen>
           placeName = adminArea;
         }
 
-        String cityLine = [locality, adminArea]
-            .where((s) => s.isNotEmpty)
-            .join(', ');
+        String cityLine =
+        [locality, adminArea].where((s) => s.isNotEmpty).join(', ');
 
         setState(() {
-          _placeName = placeName.isNotEmpty ? placeName.toUpperCase() : 'UNKNOWN';
-          _streetAddress = street.toUpperCase();
-          _city = cityLine.toUpperCase();
-          _country = country.toUpperCase();
-          _statusMessage = 'LIVE — UPDATES EVERY 10M OF MOVEMENT';
+          _placeName =
+          placeName.isNotEmpty ? _toTitleCase(placeName) : 'Unknown';
+          _streetAddress = _toTitleCase(street);
+          _city = _toTitleCase(cityLine);
+          _country = _toTitleCase(country);
+          _statusMessage = 'Live · Updates every 10m of movement';
         });
       }
     } catch (e) {
       setState(() {
-        _placeName = 'LOOKUP FAILED';
-        _statusMessage = 'GEOCODING ERROR: $e';
+        _placeName = 'Lookup failed';
+        _statusMessage = 'Geocoding error: $e';
       });
     }
+  }
+
+  String _toTitleCase(String s) {
+    if (s.isEmpty) return s;
+    return s.split(' ').map((w) {
+      if (w.isEmpty) return w;
+      return w[0].toUpperCase() + w.substring(1).toLowerCase();
+    }).join(' ');
   }
 
   void _stopTracking() {
     _positionStream?.cancel();
     setState(() {
       _isTracking = false;
-      _statusMessage = 'SIGNAL PAUSED';
+      _statusMessage = 'Signal paused';
     });
   }
 
@@ -242,15 +264,14 @@ class _LocationScreenState extends State<LocationScreen>
     }
   }
 
-  // ─── DIALOGS ─────────────────────────────────────────────────────────────
-
   void _showServiceDisabledDialog() {
     showDialog(
       context: context,
-      builder: (ctx) => _BrutalistDialog(
-        title: 'GPS DISABLED',
-        message: 'ENABLE LOCATION SERVICES ON YOUR DEVICE TO USE THIS APP.',
-        confirmLabel: 'OPEN SETTINGS',
+      builder: (ctx) => _BeachDialog(
+        title: 'GPS Disabled',
+        message:
+        'Enable location services on your device to start exploring.',
+        confirmLabel: 'Open Settings',
         onConfirm: () {
           Navigator.pop(ctx);
           Geolocator.openLocationSettings();
@@ -263,11 +284,11 @@ class _LocationScreenState extends State<LocationScreen>
   void _showPermissionDeniedDialog() {
     showDialog(
       context: context,
-      builder: (ctx) => _BrutalistDialog(
-        title: 'ACCESS DENIED',
+      builder: (ctx) => _BeachDialog(
+        title: 'Access Denied',
         message:
-        'LOCATION PERMISSION WAS PERMANENTLY DENIED. OPEN APP SETTINGS TO ENABLE.',
-        confirmLabel: 'APP SETTINGS',
+        'Location permission was permanently denied. Open settings to enable.',
+        confirmLabel: 'App Settings',
         onConfirm: () {
           Navigator.pop(ctx);
           Geolocator.openAppSettings();
@@ -277,41 +298,56 @@ class _LocationScreenState extends State<LocationScreen>
     );
   }
 
-  // ─── BUILD ────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _paper,
-      body: SlideTransition(
-        position: _slideAnimation,
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildTopBar(),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildHeroBanner(),
-                      _buildCoordinatesRow(),
-                      _buildAddressStrip(),
-                      _buildStatsRow(),
-                      const SizedBox(height: 16),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: _buildControlButton(),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildStatusTicker(),
-                      const SizedBox(height: 24),
-                    ],
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFCCE5F7), Color(0xFFF0F6FF)],
+            stops: [0.0, 0.45],
+          ),
+        ),
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildTopBar(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildHeroCard(),
+                        const SizedBox(height: 16),
+                        _buildCoordinatesRow(),
+                        const SizedBox(height: 12),
+                        if (_streetAddress.isNotEmpty) ...[
+                          _buildAddressCard(),
+                          const SizedBox(height: 12),
+                        ],
+                        if (_currentPosition != null) ...[
+                          _buildStatsRow(),
+                          const SizedBox(height: 12),
+                        ],
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: _buildControlButton(),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildStatusBar(),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -321,72 +357,97 @@ class _LocationScreenState extends State<LocationScreen>
   // ─── TOP BAR ─────────────────────────────────────────────────────────────
 
   Widget _buildTopBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: _ink,
-        border: Border(bottom: BorderSide(color: _border, width: _borderWidth)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // Sun icon
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: _ocean,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: _ocean.withOpacity(0.35),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: const Icon(Icons.waves_rounded,
+                color: _foam, size: 20),
+          ),
+          const SizedBox(width: 10),
           // Wordmark
-          const Text(
-            'LOCATE',
+          Text(
+            'Serenity',
             style: TextStyle(
-              color: _paper,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 8,
-              fontFamily: 'Courier',
+              color: _dusk,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'Georgia',
+              letterSpacing: 0.5,
             ),
           ),
           const Spacer(),
-          // Update counter chip
+          // Update counter pill
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
-              color: _paper,
-              border: Border.all(color: _paper, width: 1),
+              color: _ocean.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '#${_updateCount.toString().padLeft(4, '0')}',
-              style: const TextStyle(
-                color: _ink,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 2,
-                fontFamily: 'Courier',
+              '${_updateCount} fixes',
+              style: TextStyle(
+                color: _ocean,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          // Live dot
+          const SizedBox(width: 10),
+          // Live badge
           if (_isTracking)
             AnimatedBuilder(
-              animation: _blinkAnimation,
+              animation: _pulseAnimation,
               builder: (context, child) => Opacity(
-                opacity: _blinkAnimation.value,
+                opacity: _pulseAnimation.value,
                 child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: const BoxDecoration(
-                    color: _accent,
-                    shape: BoxShape.circle,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: _coral,
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                ),
-              ),
-            ),
-          if (_isTracking)
-            const Padding(
-              padding: EdgeInsets.only(left: 6),
-              child: Text(
-                'LIVE',
-                style: TextStyle(
-                  color: _accent,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 3,
-                  fontFamily: 'Courier',
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: _foam,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      const Text(
+                        'Live',
+                        style: TextStyle(
+                          color: _foam,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -395,97 +456,129 @@ class _LocationScreenState extends State<LocationScreen>
     );
   }
 
-  // ─── HERO BANNER ─────────────────────────────────────────────────────────
+  // ─── HERO CARD ────────────────────────────────────────────────────────────
 
-  Widget _buildHeroBanner() {
+  Widget _buildHeroCard() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       decoration: BoxDecoration(
-        color: _paperDark,
-        border: Border.all(color: _border, width: _borderWidth),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_ocean, Color(0xFF0D47A1)],
+        ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: _ocean.withOpacity(0.35),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
         children: [
-          // Label strip
-          Container(
-            color: _ink,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: const Text(
-              'CURRENT LOCATION',
-              style: TextStyle(
-                color: _paper,
-                fontSize: 10,
-                letterSpacing: 4,
-                fontWeight: FontWeight.w700,
-                fontFamily: 'Courier',
+          // Decorative wave circles
+          Positioned(
+            right: -30,
+            top: -30,
+            child: Container(
+              width: 130,
+              height: 130,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _foam.withOpacity(0.08),
               ),
             ),
           ),
-          // Main place name
+          Positioned(
+            right: 10,
+            bottom: -20,
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _foam.withOpacity(0.06),
+              ),
+            ),
+          ),
+          // Content
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 4),
-            child: _isLoading
-                ? const SizedBox(
-              height: 60,
-              child: Center(
-                child: SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: CircularProgressIndicator(
-                    color: _ink,
-                    strokeWidth: 3,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_rounded,
+                        color: _sun, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      'You are here',
+                      style: TextStyle(
+                        color: _foam.withOpacity(0.8),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _isLoading
+                    ? const SizedBox(
+                  height: 64,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: _foam,
+                      strokeWidth: 2.5,
+                    ),
+                  ),
+                )
+                    : Text(
+                  _placeName,
+                  style: const TextStyle(
+                    color: _foam,
+                    fontSize: 40,
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
+                    fontFamily: 'Georgia',
                   ),
                 ),
-              ),
-            )
-                : FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                _placeName,
-                style: const TextStyle(
-                  color: _ink,
-                  fontSize: 52,
-                  fontWeight: FontWeight.w900,
-                  height: 1.0,
-                  letterSpacing: -1,
-                  fontFamily: 'Courier',
-                ),
-              ),
+                const SizedBox(height: 8),
+                if (_city.isNotEmpty)
+                  Text(
+                    _city,
+                    style: TextStyle(
+                      color: _foam.withOpacity(0.75),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                const SizedBox(height: 4),
+                if (_country.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _sun.withOpacity(0.25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      _country,
+                      style: const TextStyle(
+                        color: _sun,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-          if (_city.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-              child: Text(
-                _city,
-                style: const TextStyle(
-                  color: _ink,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 2,
-                  fontFamily: 'Courier',
-                ),
-              ),
-            ),
-          if (_country.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-              child: Text(
-                _country,
-                style: const TextStyle(
-                  color: _accent,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 3,
-                  fontFamily: 'Courier',
-                ),
-              ),
-            ),
-          if (_country.isEmpty) const SizedBox(height: 20),
-          // Bottom accent bar
-          Container(height: 5, color: _accent),
         ],
       ),
     );
@@ -494,56 +587,65 @@ class _LocationScreenState extends State<LocationScreen>
   // ─── COORDINATES ROW ─────────────────────────────────────────────────────
 
   Widget _buildCoordinatesRow() {
-    final lat = _currentPosition?.latitude.toStringAsFixed(6) ?? '——.——————';
-    final lng = _currentPosition?.longitude.toStringAsFixed(6) ?? '——.——————';
+    final lat =
+        _currentPosition?.latitude.toStringAsFixed(6) ?? '—.——————';
+    final lng =
+        _currentPosition?.longitude.toStringAsFixed(6) ?? '—.——————';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          Expanded(child: _buildCoordTile('LAT', lat, Icons.north)),
-          const SizedBox(width: 8),
-          Expanded(child: _buildCoordTile('LNG', lng, Icons.east)),
+          Expanded(child: _buildCoordCard('Latitude', lat, Icons.north_rounded, _sky)),
+          const SizedBox(width: 10),
+          Expanded(child: _buildCoordCard('Longitude', lng, Icons.east_rounded, _coral)),
         ],
       ),
     );
   }
 
-  Widget _buildCoordTile(String label, String value, IconData icon) {
+  Widget _buildCoordCard(
+      String label, String value, IconData icon, Color accent) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _paper,
-        border: Border.all(color: _border, width: _borderWidth),
+        color: _foam,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: _dusk.withOpacity(0.07),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 13, color: _accent),
-              const SizedBox(width: 4),
+              Icon(icon, size: 14, color: accent),
+              const SizedBox(width: 5),
               Text(
                 label,
-                style: const TextStyle(
-                  color: _accent,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 3,
-                  fontFamily: 'Courier',
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(
-              color: _ink,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
+            style: TextStyle(
+              color: _dusk,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
               fontFamily: 'Courier',
-              letterSpacing: 1,
+              letterSpacing: 0.5,
             ),
           ),
         ],
@@ -551,52 +653,58 @@ class _LocationScreenState extends State<LocationScreen>
     );
   }
 
-  // ─── ADDRESS STRIP ────────────────────────────────────────────────────────
+  // ─── ADDRESS CARD ─────────────────────────────────────────────────────────
 
-  Widget _buildAddressStrip() {
-    if (_streetAddress.isEmpty) return const SizedBox(height: 12);
-
+  Widget _buildAddressCard() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border.all(color: _border, width: _borderWidth),
+        color: _foam,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: _dusk.withOpacity(0.07),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            color: _ink,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            child: const Icon(Icons.map_outlined, color: _paper, size: 18),
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: _sandMid,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.map_rounded, color: _ocean, size: 22),
           ),
+          const SizedBox(width: 14),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'STREET ADDRESS',
-                    style: TextStyle(
-                      color: _accent,
-                      fontSize: 9,
-                      letterSpacing: 3,
-                      fontWeight: FontWeight.w900,
-                      fontFamily: 'Courier',
-                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Street Address',
+                  style: TextStyle(
+                    color: _dusk.withOpacity(0.5),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.3,
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    _streetAddress,
-                    style: const TextStyle(
-                      color: _ink,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'Courier',
-                      letterSpacing: 0.5,
-                    ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _streetAddress,
+                  style: const TextStyle(
+                    color: _dusk,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -607,37 +715,38 @@ class _LocationScreenState extends State<LocationScreen>
   // ─── STATS ROW ────────────────────────────────────────────────────────────
 
   Widget _buildStatsRow() {
-    if (_currentPosition == null) return const SizedBox(height: 12);
-
     final accuracy = _currentPosition!.accuracy;
     final altitude = _currentPosition!.altitude;
     final speed = _currentPosition!.speed * 3.6;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
           Expanded(
-            child: _buildStatCell(
-              Icons.radar,
-              '±${accuracy.toStringAsFixed(0)}M',
-              'ACCURACY',
+            child: _buildStatCard(
+              Icons.radar_rounded,
+              '±${accuracy.toStringAsFixed(0)}m',
+              'Accuracy',
+              _sky,
             ),
           ),
-          _buildVerticalDivider(),
+          const SizedBox(width: 10),
           Expanded(
-            child: _buildStatCell(
-              Icons.terrain,
-              '${altitude.toStringAsFixed(1)}M',
-              'ALTITUDE',
+            child: _buildStatCard(
+              Icons.terrain_rounded,
+              '${altitude.toStringAsFixed(1)}m',
+              'Altitude',
+              _ocean,
             ),
           ),
-          _buildVerticalDivider(),
+          const SizedBox(width: 10),
           Expanded(
-            child: _buildStatCell(
-              Icons.speed,
+            child: _buildStatCard(
+              Icons.speed_rounded,
               '${speed.toStringAsFixed(1)}',
-              'KM/H',
+              'km/h',
+              _coral,
             ),
           ),
         ],
@@ -645,40 +754,50 @@ class _LocationScreenState extends State<LocationScreen>
     );
   }
 
-  Widget _buildVerticalDivider() {
-    return Container(width: _borderWidth, color: _border);
-  }
-
-  Widget _buildStatCell(IconData icon, String value, String label) {
+  Widget _buildStatCard(
+      IconData icon, String value, String label, Color accent) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
       decoration: BoxDecoration(
-        color: _paperDark,
-        border: Border.all(color: _border, width: _borderWidth),
+        color: _foam,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: _dusk.withOpacity(0.07),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          Icon(icon, color: _accent, size: 16),
-          const SizedBox(height: 6),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: accent.withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: accent, size: 18),
+          ),
+          const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(
-              color: _ink,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
+            style: TextStyle(
+              color: _dusk,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
               fontFamily: 'Courier',
-              letterSpacing: 0.5,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
-              color: _ink,
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 2.5,
-              fontFamily: 'Courier',
+            style: TextStyle(
+              color: _dusk.withOpacity(0.5),
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.3,
             ),
           ),
         ],
@@ -690,21 +809,32 @@ class _LocationScreenState extends State<LocationScreen>
 
   Widget _buildControlButton() {
     final isStop = _isTracking && !_isLoading;
-    final bgColor = isStop ? _red : _ink;
+    final gradient = isStop
+        ? const LinearGradient(
+        colors: [Color(0xFF29B6F6), Color(0xFF0288D1)])
+        : const LinearGradient(
+        colors: [_ocean, Color(0xFF0D47A1)]);
     final label = _isLoading
-        ? 'ACQUIRING...'
+        ? 'Acquiring signal…'
         : _isTracking
-        ? 'STOP TRACKING'
-        : 'START TRACKING';
-    final iconData = _isTracking ? Icons.stop : Icons.play_arrow;
+        ? 'Stop Tracking'
+        : 'Start Tracking';
+    final icon = _isTracking ? Icons.stop_rounded : Icons.navigation_rounded;
 
     return GestureDetector(
       onTap: _isLoading ? null : _toggleTracking,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
-          color: bgColor,
-          border: Border.all(color: _border, width: _borderWidth),
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: _ocean.withOpacity(0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         padding: const EdgeInsets.symmetric(vertical: 18),
         child: Row(
@@ -712,24 +842,23 @@ class _LocationScreenState extends State<LocationScreen>
           children: [
             if (_isLoading)
               const SizedBox(
-                width: 18,
-                height: 18,
+                width: 20,
+                height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  color: _paper,
+                  color: _foam,
                 ),
               )
             else
-              Icon(iconData, color: _paper, size: 20),
-            const SizedBox(width: 12),
+              Icon(icon, color: _foam, size: 22),
+            const SizedBox(width: 10),
             Text(
               label,
               style: const TextStyle(
-                color: _paper,
+                color: _foam,
                 fontSize: 16,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 5,
-                fontFamily: 'Courier',
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
               ),
             ),
           ],
@@ -738,25 +867,35 @@ class _LocationScreenState extends State<LocationScreen>
     );
   }
 
-  // ─── STATUS TICKER ────────────────────────────────────────────────────────
+  // ─── STATUS BAR ──────────────────────────────────────────────────────────
 
-  Widget _buildStatusTicker() {
+  Widget _buildStatusBar() {
     return Container(
-      color: _paperDark,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: _sandMid.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Row(
         children: [
-          Container(width: 6, height: 6, color: _accent),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: _isTracking ? _ocean : _sandDeep,
+              shape: BoxShape.circle,
+            ),
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               _statusMessage,
-              style: const TextStyle(
-                color: _ink,
-                fontSize: 10,
-                letterSpacing: 2,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Courier',
+              style: TextStyle(
+                color: _dusk.withOpacity(0.65),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.2,
               ),
             ),
           ),
@@ -766,16 +905,16 @@ class _LocationScreenState extends State<LocationScreen>
   }
 }
 
-// ─── BRUTALIST DIALOG ─────────────────────────────────────────────────────
+// ─── BEACH DIALOG ─────────────────────────────────────────────────────────
 
-class _BrutalistDialog extends StatelessWidget {
+class _BeachDialog extends StatelessWidget {
   final String title;
   final String message;
   final String confirmLabel;
   final VoidCallback onConfirm;
   final VoidCallback onCancel;
 
-  const _BrutalistDialog({
+  const _BeachDialog({
     required this.title,
     required this.message,
     required this.confirmLabel,
@@ -786,11 +925,18 @@ class _BrutalistDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: _paper,
-      shape: const RoundedRectangleBorder(),
+      backgroundColor: Colors.transparent,
       child: Container(
         decoration: BoxDecoration(
-          border: Border.all(color: _border, width: _borderWidth),
+          color: _foam,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: _dusk.withOpacity(0.18),
+              blurRadius: 30,
+              offset: const Offset(0, 12),
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -798,78 +944,111 @@ class _BrutalistDialog extends StatelessWidget {
           children: [
             // Header
             Container(
-              color: _ink,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              child: Text(
-                title,
-                style: const TextStyle(
-                  color: _paper,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 4,
-                  fontFamily: 'Courier',
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [_ocean, Color(0xFF0D47A1)],
                 ),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _foam.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.location_off_rounded,
+                        color: _foam, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: _foam,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'Georgia',
+                    ),
+                  ),
+                ],
               ),
             ),
+            // Body
             Padding(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(20),
               child: Text(
                 message,
-                style: const TextStyle(
-                  color: _ink,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1,
+                style: TextStyle(
+                  color: _dusk.withOpacity(0.75),
+                  fontSize: 14,
                   height: 1.6,
-                  fontFamily: 'Courier',
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ),
-            Container(height: _borderWidth, color: _border),
-            Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: onCancel,
-                    child: Container(
-                      color: _paperDark,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      alignment: Alignment.center,
-                      child: const Text(
-                        'CANCEL',
-                        style: TextStyle(
-                          color: _ink,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 3,
-                          fontFamily: 'Courier',
+            const Divider(height: 1, color: Color(0xFFEEEEEE)),
+            // Actions
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: onCancel,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        decoration: BoxDecoration(
+                          color: _sandMid,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: _dusk.withOpacity(0.7),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                Container(width: _borderWidth, color: _border),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: onConfirm,
-                    child: Container(
-                      color: _ink,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      alignment: Alignment.center,
-                      child: Text(
-                        confirmLabel,
-                        style: const TextStyle(
-                          color: _paper,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 3,
-                          fontFamily: 'Courier',
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: onConfirm,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [_ocean, Color(0xFF0D47A1)],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _ocean.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          confirmLabel,
+                          style: const TextStyle(
+                            color: _foam,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
